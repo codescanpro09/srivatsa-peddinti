@@ -37,31 +37,29 @@ new RGBELoader().load('https://raw.githubusercontent.com/mrdoob/three.js/master/
     scene.environment = texture;
 });
 
-// Formal Background for Refraction
-// Replacing ugly neon colors with sleek, dark, formal colors: deep midnight blues, slate grays, muted purples
+// Premium Background for Refraction
 const bgGroup = new THREE.Group();
-const colors = [0x00d9ff, 0x0044ff, 0xaa00ff, 0x051025, 0x0088ff];
+const colors = [0x8A2387, 0xE94057, 0xF27121, 0x00d2ff, 0x3a7bd5];
 const bgObjects = [];
 
 for (let i = 0; i < 5; i++) {
-    const bgMat = new THREE.MeshPhysicalMaterial({
-        color: colors[i],
-        roughness: 0.8,
-        metalness: 0.2
+    const bgMat = new THREE.MeshBasicMaterial({
+        color: colors[i]
     });
-    // Larger, smoother background elements
-    const bgGeo = new THREE.SphereGeometry(4, 64, 64);
+    const bgGeo = new THREE.SphereGeometry(6, 64, 64);
     const bgMesh = new THREE.Mesh(bgGeo, bgMat);
     bgMesh.position.set(
-        (Math.random() - 0.5) * 15,
-        (Math.random() - 0.5) * 15,
-        -12 - Math.random() * 8
+        (Math.random() - 0.5) * 20,
+        (Math.random() - 0.5) * 20,
+        -15 - Math.random() * 10
     );
     bgGroup.add(bgMesh);
     bgObjects.push({
         mesh: bgMesh,
         offsetX: Math.random() * Math.PI * 2,
-        offsetY: Math.random() * Math.PI * 2
+        offsetY: Math.random() * Math.PI * 2,
+        baseX: bgMesh.position.x,
+        baseY: bgMesh.position.y
     });
 }
 scene.add(bgGroup);
@@ -140,10 +138,10 @@ function animate() {
     geometry.computeVertexNormals();
     positionAttribute.needsUpdate = true;
 
-    // Animate background objects (Slow, floating blobs)
+    // Animate background objects
     bgObjects.forEach((obj) => {
-        obj.mesh.position.y += Math.sin(time * 0.1 + obj.offsetY) * 0.005;
-        obj.mesh.position.x += Math.cos(time * 0.1 + obj.offsetX) * 0.005;
+        obj.mesh.position.x = obj.baseX + Math.sin(time * 0.2 + obj.offsetX) * 5;
+        obj.mesh.position.y = obj.baseY + Math.cos(time * 0.15 + obj.offsetY) * 5;
         obj.mesh.rotation.x += 0.001;
         obj.mesh.rotation.y += 0.001;
     });
