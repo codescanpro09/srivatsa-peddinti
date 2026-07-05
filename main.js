@@ -12,59 +12,62 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 document.body.appendChild(renderer.domElement);
 
-// Add lighting
-const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+// Add lighting - Softer, more elegant lighting
+const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
 scene.add(ambientLight);
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
-directionalLight.position.set(5, 5, 5);
-scene.add(directionalLight);
+const directionalLight1 = new THREE.DirectionalLight(0xffffff, 2);
+directionalLight1.position.set(5, 5, 5);
+scene.add(directionalLight1);
 
-// Background objects for refraction - to create the "Apple style clear liquid" we need colorful, blurry shapes
+const directionalLight2 = new THREE.DirectionalLight(0x8cb5ff, 1); // Subtle blue rim light
+directionalLight2.position.set(-5, -5, -5);
+scene.add(directionalLight2);
+
+// Formal Background for Refraction
+// Replacing ugly neon colors with sleek, dark, formal colors: deep midnight blues, slate grays, muted purples
 const bgGroup = new THREE.Group();
-// Neocities site colors (Cyan, Blue, Purple)
-const colors = [0x00d9ff, 0x0044ff, 0xaa00ff, 0x051025, 0x0088ff];
+const colors = [0x0a1128, 0x1c2541, 0x3a506b, 0x0f172a, 0x1e1e24];
 const bgObjects = [];
 
 for (let i = 0; i < 5; i++) {
-    const bgMat = new THREE.MeshBasicMaterial({
+    const bgMat = new THREE.MeshPhysicalMaterial({
         color: colors[i],
+        roughness: 0.8,
+        metalness: 0.2
     });
-    // Create large planes or spheres to fill the background
-    const bgGeo = new THREE.SphereGeometry(3, 64, 64);
+    // Larger, smoother background elements
+    const bgGeo = new THREE.SphereGeometry(4, 64, 64);
     const bgMesh = new THREE.Mesh(bgGeo, bgMat);
     bgMesh.position.set(
         (Math.random() - 0.5) * 15,
         (Math.random() - 0.5) * 15,
-        -10 - Math.random() * 5
+        -12 - Math.random() * 8
     );
     bgGroup.add(bgMesh);
     bgObjects.push({
         mesh: bgMesh,
-        speedX: (Math.random() - 0.5) * 0.01,
-        speedY: (Math.random() - 0.5) * 0.01,
         offsetX: Math.random() * Math.PI * 2,
         offsetY: Math.random() * Math.PI * 2
     });
 }
 scene.add(bgGroup);
 
-// Setup Glass Material (Liquid Glassmorphism)
+// Setup Glass Material (Formal Liquid Glassmorphism)
 const glassMaterial = new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
     metalness: 0.1,
-    roughness: 0.05,
-    transmission: 1.0, // glass-like fully transmissive
-    thickness: 2.5, // thickness of the glass
-    ior: 1.5, // index of refraction (glass)
-    dispersion: 1.2, // chromatic aberration
+    roughness: 0.02, // Clearer glass
+    transmission: 1.0, // Fully transmissive
+    thickness: 2.0, // Elegant thickness
+    ior: 1.52, // Glass IOR
+    dispersion: 0.5, // Reduced dispersion for a more formal look (less rainbow, more pure)
     clearcoat: 1.0,
-    clearcoatRoughness: 0.1,
+    clearcoatRoughness: 0.05,
     envMapIntensity: 1.0,
 });
 
 // Setup Geometry: A soft, morphing sphere for the "liquid" feel
-// Using an Icosahedron as it provides a good base for subdivision/distortion
 const geometry = new THREE.IcosahedronGeometry(2, 64);
 const mesh = new THREE.Mesh(geometry, glassMaterial);
 scene.add(mesh);
@@ -77,8 +80,11 @@ let targetScroll = 0;
 let currentScroll = 0;
 
 window.addEventListener('scroll', () => {
-    // targetScroll will be between 0 and 1
-    targetScroll = window.scrollY / (document.body.scrollHeight - window.innerHeight);
+    // Calculate total scrollable height
+    const scrollableHeight = document.body.scrollHeight - window.innerHeight;
+    if (scrollableHeight > 0) {
+        targetScroll = window.scrollY / scrollableHeight;
+    }
 });
 
 const clock = new THREE.Clock();
@@ -90,29 +96,28 @@ function animate() {
     // Smooth scroll interpolation
     currentScroll += (targetScroll - currentScroll) * 0.05;
 
-    // Rotate glass object based on scroll and time
-    mesh.rotation.x = currentScroll * Math.PI * 2 + time * 0.1;
-    mesh.rotation.y = currentScroll * Math.PI * 2 + time * 0.15;
+    // Rotate glass object smoothly based on scroll and time
+    mesh.rotation.x = currentScroll * Math.PI * 2 + time * 0.05;
+    mesh.rotation.y = currentScroll * Math.PI * 2 + time * 0.08;
 
-    // Scale object slightly based on scroll
-    const targetScale = 1 + currentScroll * 0.5;
+    // Scale object slightly based on scroll for dramatic effect
+    const targetScale = 1 + Math.sin(currentScroll * Math.PI) * 0.3;
     mesh.scale.set(targetScale, targetScale, targetScale);
 
-    // Animate vertices for a "liquid" flowing effect
+    // Animate vertices for a "liquid" flowing effect (Formal / Calmer flow)
     const positionAttribute = geometry.attributes.position;
     const vertex = new THREE.Vector3();
 
-    // Deform geometry based on noise/sine waves to look like liquid
     for ( let i = 0; i < positionAttribute.count; i ++ ) {
         vertex.fromBufferAttribute( originalPositions, i );
 
-        // Complex wave combining time and scroll position
-        const wave1 = Math.sin(vertex.x * 1.5 + time * 0.5) * 0.1;
-        const wave2 = Math.cos(vertex.y * 1.5 + time * 0.8) * 0.1;
-        const wave3 = Math.sin(vertex.z * 1.5 + time * 1.2 + currentScroll * Math.PI * 2) * 0.1;
+        // Slower, smoother wave equations
+        const wave1 = Math.sin(vertex.x * 1.2 + time * 0.3) * 0.08;
+        const wave2 = Math.cos(vertex.y * 1.2 + time * 0.4) * 0.08;
+        const wave3 = Math.sin(vertex.z * 1.2 + time * 0.5 + currentScroll * Math.PI) * 0.08;
 
-        // The liquid gets more distorted as you scroll
-        const distortionAmount = 0.8 + currentScroll * 1.5;
+        // Distortion scales subtly with scroll
+        const distortionAmount = 0.5 + currentScroll * 0.8;
 
         vertex.multiplyScalar(1 + (wave1 + wave2 + wave3) * distortionAmount);
 
@@ -122,14 +127,12 @@ function animate() {
     geometry.computeVertexNormals();
     positionAttribute.needsUpdate = true;
 
-    // Animate background objects (floating blobs)
+    // Animate background objects (Slow, floating blobs)
     bgObjects.forEach((obj) => {
-        obj.mesh.position.y += Math.sin(time * 0.2 + obj.offsetY) * 0.02;
-        obj.mesh.position.x += Math.cos(time * 0.2 + obj.offsetX) * 0.02;
-
-        // Gentle rotation
-        obj.mesh.rotation.x += 0.005;
-        obj.mesh.rotation.y += 0.005;
+        obj.mesh.position.y += Math.sin(time * 0.1 + obj.offsetY) * 0.005;
+        obj.mesh.position.x += Math.cos(time * 0.1 + obj.offsetX) * 0.005;
+        obj.mesh.rotation.x += 0.001;
+        obj.mesh.rotation.y += 0.001;
     });
 
     renderer.render(scene, camera);
