@@ -1,7 +1,9 @@
 import * as THREE from 'three';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
 // Setup basic scene
 const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.z = 5;
 
@@ -10,7 +12,12 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
-document.body.appendChild(renderer.domElement);
+// document.body.appendChild(renderer.domElement);
+const container = document.getElementById('canvas-container');
+if(container) {
+    container.innerHTML = '';
+    container.appendChild(renderer.domElement);
+}
 
 // Add lighting - Softer, more elegant lighting
 const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
@@ -24,10 +31,16 @@ const directionalLight2 = new THREE.DirectionalLight(0x8cb5ff, 1); // Subtle blu
 directionalLight2.position.set(-5, -5, -5);
 scene.add(directionalLight2);
 
+// Setup Environment Map for realistic glass reflections
+new RGBELoader().load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/equirectangular/royal_esplanade_1k.hdr', function (texture) {
+    texture.mapping = THREE.EquirectangularReflectionMapping;
+    scene.environment = texture;
+});
+
 // Formal Background for Refraction
 // Replacing ugly neon colors with sleek, dark, formal colors: deep midnight blues, slate grays, muted purples
 const bgGroup = new THREE.Group();
-const colors = [0x0a1128, 0x1c2541, 0x3a506b, 0x0f172a, 0x1e1e24];
+const colors = [0x00d9ff, 0x0044ff, 0xaa00ff, 0x051025, 0x0088ff];
 const bgObjects = [];
 
 for (let i = 0; i < 5; i++) {
@@ -61,7 +74,7 @@ const glassMaterial = new THREE.MeshPhysicalMaterial({
     transmission: 1.0, // Fully transmissive
     thickness: 2.0, // Elegant thickness
     ior: 1.52, // Glass IOR
-    dispersion: 0.5, // Reduced dispersion for a more formal look (less rainbow, more pure)
+    dispersion: 0.0, // Reduced dispersion for a more formal look
     clearcoat: 1.0,
     clearcoatRoughness: 0.05,
     envMapIntensity: 1.0,
@@ -145,4 +158,66 @@ window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Custom Cursor Implementation
+const cursorDot = document.querySelector('.cursor-dot');
+const cursorOutline = document.querySelector('.cursor-outline');
+
+if (cursorDot && cursorOutline) {
+    window.addEventListener('mousemove', (e) => {
+        const posX = e.clientX;
+        const posY = e.clientY;
+
+        cursorDot.style.left = `${posX}px`;
+        cursorDot.style.top = `${posY}px`;
+
+        cursorOutline.animate({
+            left: `${posX}px`,
+            top: `${posY}px`
+        }, { duration: 500, fill: "forwards" });
+    });
+
+    const interactives = document.querySelectorAll('a, button, .why-card');
+
+    interactives.forEach(el => {
+        el.addEventListener('mouseenter', () => {
+            cursorOutline.style.width = '80px';
+            cursorOutline.style.height = '80px';
+            cursorOutline.style.backgroundColor = 'rgba(0, 170, 255, 0.1)';
+            cursorOutline.style.borderColor = '#00aaff';
+        });
+
+        el.addEventListener('mouseleave', () => {
+            cursorOutline.style.width = '40px';
+            cursorOutline.style.height = '40px';
+            cursorOutline.style.backgroundColor = 'transparent';
+            cursorOutline.style.borderColor = 'rgba(255, 255, 255, 0.5)';
+        });
+    });
+}
+
+// Intersection Observer for fade-in animations on scroll
+const observerOptions = {
+    root: null,
+    rootMargin: '0px',
+    threshold: 0.1
+};
+
+const observer = new IntersectionObserver((entries, obs) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            entry.target.style.opacity = '1';
+            entry.target.style.transform = 'translateY(0)';
+            entry.target.classList.add('visible');
+            obs.unobserve(entry.target);
+        }
+    });
+}, observerOptions);
+
+document.querySelectorAll('.fade-in').forEach(element => {
+    element.style.opacity = '0';
+    element.style.transform = 'translateY(20px)';
+    element.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
+    observer.observe(element);
 });
