@@ -3,33 +3,22 @@ import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
 // Setup basic scene
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x000000);
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.z = 5;
+scene.background = new THREE.Color(0x000000); // Pure black background
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 5, 20); // Moved back to see the cluster
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.0;
-// document.body.appendChild(renderer.domElement);
+renderer.toneMappingExposure = 1.2;
+
 const container = document.getElementById('canvas-container');
 if(container) {
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
 }
-
-// Add lighting - Softer, more elegant lighting
-const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
-scene.add(ambientLight);
-
-const directionalLight1 = new THREE.DirectionalLight(0xffffff, 2);
-directionalLight1.position.set(5, 5, 5);
-scene.add(directionalLight1);
-
-const directionalLight2 = new THREE.DirectionalLight(0x8cb5ff, 1); // Subtle blue rim light
-directionalLight2.position.set(-5, -5, -5);
-scene.add(directionalLight2);
 
 // Setup Environment Map for realistic glass reflections
 new RGBELoader().load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/equirectangular/royal_esplanade_1k.hdr', function (texture) {
@@ -37,61 +26,105 @@ new RGBELoader().load('https://raw.githubusercontent.com/mrdoob/three.js/master/
     scene.environment = texture;
 });
 
-// Premium Background for Refraction
-const bgGroup = new THREE.Group();
-const colors = [0x8A2387, 0xE94057, 0xF27121, 0x00d2ff, 0x3a7bd5];
-const bgObjects = [];
+// Add lighting - Crucial for the deep blue and dispersive highlights
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
 
-for (let i = 0; i < 5; i++) {
-    const bgMat = new THREE.MeshBasicMaterial({
-        color: colors[i]
-    });
-    const bgGeo = new THREE.SphereGeometry(6, 64, 64);
-    const bgMesh = new THREE.Mesh(bgGeo, bgMat);
-    bgMesh.position.set(
-        (Math.random() - 0.5) * 20,
-        (Math.random() - 0.5) * 20,
-        -15 - Math.random() * 10
-    );
-    bgGroup.add(bgMesh);
-    bgObjects.push({
-        mesh: bgMesh,
-        offsetX: Math.random() * Math.PI * 2,
-        offsetY: Math.random() * Math.PI * 2,
-        baseX: bgMesh.position.x,
-        baseY: bgMesh.position.y
-    });
-}
-scene.add(bgGroup);
+// Intense directional light to cast strong highlights
+const directionalLight = new THREE.DirectionalLight(0xffffff, 3);
+directionalLight.position.set(10, 20, 10);
+scene.add(directionalLight);
 
-// Setup Glass Material (Formal Liquid Glassmorphism)
+// Deep blue point light inside the cluster to give the core color
+const blueLight = new THREE.PointLight(0x0044ff, 50, 50);
+blueLight.position.set(0, -2, 0);
+scene.add(blueLight);
+
+// Colorful lights around the scene to create the "rainbow" dispersion effect on the edges
+const pinkLight = new THREE.PointLight(0xff00aa, 20, 30);
+pinkLight.position.set(-8, 5, -5);
+scene.add(pinkLight);
+
+const cyanLight = new THREE.PointLight(0x00ffff, 20, 30);
+cyanLight.position.set(8, 5, -5);
+scene.add(cyanLight);
+
+// Setup Glass Material for Pillars
 const glassMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xffffff,
+    color: 0xe0eaff, // Very light blue tint
     metalness: 0.1,
-    roughness: 0.02, // Clearer glass
-    transmission: 1.0, // Fully transmissive
-    thickness: 2.0, // Elegant thickness
-    ior: 1.52, // Glass IOR
-    dispersion: 0.0, // Reduced dispersion for a more formal look
+    roughness: 0.05,
+    transmission: 1.0, // Fully transmissive glass
+    thickness: 2.5, // High thickness for strong refraction
+    ior: 1.6, // Glass IOR
+    dispersion: 3.0, // High dispersion for rainbow artifacts on edges
     clearcoat: 1.0,
-    clearcoatRoughness: 0.05,
-    envMapIntensity: 1.0,
+    clearcoatRoughness: 0.1,
+    envMapIntensity: 1.5,
+    attenuationColor: new THREE.Color(0x002288), // Deep blue attenuation (absorbs other colors)
+    attenuationDistance: 4.0
 });
 
-// Setup Geometry: A soft, morphing sphere for the "liquid" feel
-const geometry = new THREE.IcosahedronGeometry(2, 64);
-const mesh = new THREE.Mesh(geometry, glassMaterial);
-scene.add(mesh);
+// Create the cluster of pillars
+const pillarGroup = new THREE.Group();
+const pillars = [];
 
-// Save the original vertices for animation (morphing)
-const originalPositions = geometry.attributes.position.clone();
+// Layout grid parameters
+const gridX = 5;
+const gridZ = 5;
+const spacing = 1.2;
+
+// Box geometry for the pillars
+const geometry = new THREE.BoxGeometry(1, 1, 1);
+
+for (let x = 0; x < gridX; x++) {
+    for (let z = 0; z < gridZ; z++) {
+        // Skip some corners to make it look like an organic cluster
+        if ((x === 0 && z === 0) || (x === gridX-1 && z === 0) ||
+            (x === 0 && z === gridZ-1) || (x === gridX-1 && z === gridZ-1)) {
+            if (Math.random() > 0.5) continue;
+        }
+
+        const mesh = new THREE.Mesh(geometry, glassMaterial);
+
+        // Calculate position
+        const posX = (x - gridX / 2) * spacing;
+        const posZ = (z - gridZ / 2) * spacing;
+
+        // Distance from center dictates base height (taller in middle)
+        const distFromCenter = Math.sqrt(posX*posX + posZ*posZ);
+        const baseHeight = Math.max(2, 10 - distFromCenter * 1.5);
+
+        // Add some random variation to height
+        const height = baseHeight + (Math.random() - 0.5) * 4;
+
+        mesh.scale.set(1, height, 1);
+        mesh.position.set(posX, height / 2 - 4, posZ); // Centered vertically
+
+        pillarGroup.add(mesh);
+
+        // Store original data for animation
+        pillars.push({
+            mesh: mesh,
+            baseY: height / 2 - 4,
+            randomOffset: Math.random() * Math.PI * 2,
+            gridX: x,
+            gridZ: z
+        });
+    }
+}
+
+// Tilt the whole group slightly forward to match perspective of the image
+pillarGroup.rotation.x = 0.2;
+pillarGroup.rotation.y = -0.5;
+scene.add(pillarGroup);
+
 
 // Scroll and Animation Variables
 let targetScroll = 0;
 let currentScroll = 0;
 
 window.addEventListener('scroll', () => {
-    // Calculate total scrollable height
     const scrollableHeight = document.body.scrollHeight - window.innerHeight;
     if (scrollableHeight > 0) {
         targetScroll = window.scrollY / scrollableHeight;
@@ -107,43 +140,17 @@ function animate() {
     // Smooth scroll interpolation
     currentScroll += (targetScroll - currentScroll) * 0.05;
 
-    // Rotate glass object smoothly based on scroll and time
-    mesh.rotation.x = currentScroll * Math.PI * 2 + time * 0.05;
-    mesh.rotation.y = currentScroll * Math.PI * 2 + time * 0.08;
+    // Rotate entire cluster based on scroll
+    pillarGroup.rotation.y = -0.5 + currentScroll * Math.PI;
 
-    // Scale object slightly based on scroll for dramatic effect
-    const targetScale = 1 + Math.sin(currentScroll * Math.PI) * 0.3;
-    mesh.scale.set(targetScale, targetScale, targetScale);
+    // Slight continuous rotation for life
+    pillarGroup.rotation.y += time * 0.05;
 
-    // Animate vertices for a "liquid" flowing effect (Formal / Calmer flow)
-    const positionAttribute = geometry.attributes.position;
-    const vertex = new THREE.Vector3();
-
-    for ( let i = 0; i < positionAttribute.count; i ++ ) {
-        vertex.fromBufferAttribute( originalPositions, i );
-
-        // Slower, smoother wave equations
-        const wave1 = Math.sin(vertex.x * 1.2 + time * 0.3) * 0.08;
-        const wave2 = Math.cos(vertex.y * 1.2 + time * 0.4) * 0.08;
-        const wave3 = Math.sin(vertex.z * 1.2 + time * 0.5 + currentScroll * Math.PI) * 0.08;
-
-        // Distortion scales subtly with scroll
-        const distortionAmount = 0.5 + currentScroll * 0.8;
-
-        vertex.multiplyScalar(1 + (wave1 + wave2 + wave3) * distortionAmount);
-
-        positionAttribute.setXYZ(i, vertex.x, vertex.y, vertex.z);
-    }
-
-    geometry.computeVertexNormals();
-    positionAttribute.needsUpdate = true;
-
-    // Animate background objects
-    bgObjects.forEach((obj) => {
-        obj.mesh.position.x = obj.baseX + Math.sin(time * 0.2 + obj.offsetX) * 5;
-        obj.mesh.position.y = obj.baseY + Math.cos(time * 0.15 + obj.offsetY) * 5;
-        obj.mesh.rotation.x += 0.001;
-        obj.mesh.rotation.y += 0.001;
+    // Animate pillars (slow wave effect)
+    pillars.forEach((p) => {
+        // Wave based on time and position in grid
+        const wave = Math.sin(time * 0.5 + p.gridX * 0.5 + p.gridZ * 0.5) * 0.5;
+        p.mesh.position.y = p.baseY + wave;
     });
 
     renderer.render(scene, camera);
@@ -194,28 +201,3 @@ if (cursorDot && cursorOutline) {
         });
     });
 }
-
-// Intersection Observer for fade-in animations on scroll
-const observerOptions = {
-    root: null,
-    rootMargin: '0px',
-    threshold: 0.1
-};
-
-const observer = new IntersectionObserver((entries, obs) => {
-    entries.forEach(entry => {
-        if (entry.isIntersecting) {
-            entry.target.style.opacity = '1';
-            entry.target.style.transform = 'translateY(0)';
-            entry.target.classList.add('visible');
-            obs.unobserve(entry.target);
-        }
-    });
-}, observerOptions);
-
-document.querySelectorAll('.fade-in').forEach(element => {
-    element.style.opacity = '0';
-    element.style.transform = 'translateY(20px)';
-    element.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
-    observer.observe(element);
-});
